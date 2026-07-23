@@ -20,5 +20,5 @@ class ExperimentConfigCreate(BaseModel):
 
 class VariantResponse(BaseModel):
     experiment_name: str = Field(..., description="имя запрошенного теста")
-    user_id: str = Field(..., description="ID пользователя")
+    user_id: str = Field(..., min_length=1, description="ID пользователя")
     variant: str = Field(..., description="Выпавший вариант (A, B, control и т.д.)")
