@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Header, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.schemas.experiment import ExperimentСonfigCreate
+from src.schemas.experiment import ExperimentConfigCreate
 from src.core.database import get_session
 from src.core.redis import redis_cache
 from src.services.repository import ExperimentRepository
@@ -20,7 +20,7 @@ async def verify_admin_key(x_admin_key: str = Header(...)):
 
 @router.post("/", status_code=201, dependencies=[Depends(verify_admin_key)])
 async def create_experiment(
-    experiment: ExperimentСonfigCreate,
+    experiment: ExperimentConfigCreate,
     session: AsyncSession = Depends(get_session),
 ):
     repo = ExperimentRepository(session)

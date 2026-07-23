@@ -33,7 +33,6 @@ services:
     env_file: ../.env
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./postgres/init:/docker-entrypoint-initdb.d
     networks:
       - ab_testing_net
     healthcheck:

@@ -3,3 +3,4 @@ redis
 sqlalchemy[asyncio]
 pydantic-settings
 asyncpg
+httpx

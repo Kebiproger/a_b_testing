@@ -1,6 +1,6 @@
 import redis.asyncio as aioredis
 from typing import Optional
-from src.schemas.experiment import ExperimentСonfigCreate
+from src.schemas.experiment import ExperimentConfigCreate
 
 class RedisCache:
     def __init__(self, redis_url: str):
@@ -14,7 +14,7 @@ class RedisCache:
         )
         print("Подключение успешна к Redis!")
     
-    async def get_experiment(self, experiment_name: str) -> Optional[ExperimentСonfigCreate]:
+    async def get_experiment(self, experiment_name: str) -> Optional[ExperimentConfigCreate]:
 
         if not self.redis:
             raise RuntimeError("Redis не инициализирован")
@@ -26,9 +26,9 @@ class RedisCache:
         if not raw_data:
             return None
         
-        return ExperimentСonfigCreate.model_validate_json(raw_data)
+        return ExperimentConfigCreate.model_validate_json(raw_data)
     
-    async def get_experiment_by_url(self, url: str) -> Optional[ExperimentСonfigCreate]:
+    async def get_experiment_by_url(self, url: str) -> Optional[ExperimentConfigCreate]:
         """Найти эксперимент по URL-паттерну (перебор всех экспериментов в Redis — для демо)"""
         if not self.redis:
             raise RuntimeError("Redis не инициализирован")
@@ -37,12 +37,12 @@ class RedisCache:
             raw = await self.redis.get(key)
             if not raw:
                 continue
-            exp = ExperimentСonfigCreate.model_validate_json(raw)
+            exp = ExperimentConfigCreate.model_validate_json(raw)
             if exp.url and url.startswith(exp.url):
                 return exp
         return None
     
-    async def save_experiment(self, experiment: ExperimentСonfigCreate):
+    async def save_experiment(self, experiment: ExperimentConfigCreate):
         if not self.redis:
             raise RuntimeError("Redis не инициализирован")
         

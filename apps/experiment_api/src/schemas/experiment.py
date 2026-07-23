@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field, field_validator
 from typing import Dict, Optional, Any
 
-class ExperimentСonfigCreate(BaseModel):
+class ExperimentConfigCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=50, description="Name of the experiment")
     variants: Dict[str, int] = Field(..., description="Веса вариантов. Пример: {'A': 50, 'B': 50}",
                                      json_schema_extra={"example": {"A": 33, "B": 33, "C": 33}}

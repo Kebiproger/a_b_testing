@@ -2,18 +2,18 @@ from typing import Optional
 from sqlalchemy import select, exists
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.database import ExperimentModel
-from src.schemas.experiment import ExperimentСonfigCreate
+from src.schemas.experiment import ExperimentConfigCreate
 
 
 class ExperimentRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def get(self, name: str) -> Optional[ExperimentСonfigCreate]:
+    async def get(self, name: str) -> Optional[ExperimentConfigCreate]:
         result = await self.session.get(ExperimentModel, name)
         if not result:
             return None
-        return ExperimentСonfigCreate(
+        return ExperimentConfigCreate(
             name=result.name,
             variants=result.variants,
             config=result.config,
@@ -21,7 +21,7 @@ class ExperimentRepository:
             is_active=result.is_active,
         )
 
-    async def create(self, experiment: ExperimentСonfigCreate) -> None:
+    async def create(self, experiment: ExperimentConfigCreate) -> None:
         model = ExperimentModel(
             name=experiment.name,
             variants=experiment.variants,
@@ -37,11 +37,11 @@ class ExperimentRepository:
         result = await self.session.execute(query)
         return result.scalar()
 
-    async def list_all(self) -> list[ExperimentСonfigCreate]:
+    async def list_all(self) -> list[ExperimentConfigCreate]:
         result = await self.session.execute(select(ExperimentModel).order_by(ExperimentModel.created_at.desc()))
         rows = result.scalars().all()
         return [
-            ExperimentСonfigCreate(
+            ExperimentConfigCreate(
                 name=r.name, variants=r.variants,
                 config=r.config, url=r.url, is_active=r.is_active,
             )
