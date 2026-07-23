@@ -384,7 +384,7 @@ ab_testing/
 ├── infra/                                   # Инфраструктура
 │   ├── worker_collector/                    # Analytics Worker
 │   ├── clickhouse/init/                     # DDL (CREATE TABLE)
-│   ├── postgres/init/                       # Инициализация БД
+│   ├── postgres/                            # PostgreSQL (схема через ORM)
 │   └── docker-compose.infra.yml
 ├── nginx/                                   # Gateway
 │   ├── nginx.conf
