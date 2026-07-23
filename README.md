@@ -330,17 +330,65 @@ docker compose -f apps/docker-compose.apps.yml up -d
 
 ## 📈 Нагрузочные характеристики
 
+> ⚠️ **Все замеры — на 1 хосте (developer laptop).**  
+> Locust + все 6 Docker-контейнеров делят один CPU.  
+> В продакшене с выделенными серверами и репликами — RPS × реплики, p99 ниже.
+
+### ⚡ Experiment API (GET /api/v1/variants/)
+
+```
+Чистая аллокация (SHA-256):  1.3 µs    →  ~760 000 RPS
+                            ↓
+Через FastAPI + Redis:       p99 = 43ms →   ~460 RPS   (напрямую к контейнеру)
+                            ↓
+Через nginx gateway:         p99 = 80ms →   ~540 RPS   (через :8080)
+```
+
+### 🚀 Tracker API (POST /api/v1/tracker/events)
+
+```
+Напрямую к контейнеру:       p99 = 21ms →   ~820 RPS
+Через nginx gateway:         p99 = 80ms →   ~680 RPS
+```
+
+### 📊 Сводная таблица
+
 <div align="center">
 
-| Метрика | Целевое значение | Источник |
-|---------|:----------------:|:--------:|
-| ⚡ Experiment API (p99 latency) | **< 10 мс** | Redis Cache-Aside |
-| 🚀 Tracker API (throughput) | **1000+ RPS** | Async I/O + RabbitMQ |
-| 📦 Worker batch size | **до 5000 событий** | prefetch_count |
-| ⏱ Worker flush interval | **5 секунд** | MAX_TIMEOUT_SECONDS |
-| 🔄 Гарантия доставки | **At-least-once** | ack после INSERT |
+| Метрика | На 1 хосте (Docker) | В продакшене (5 реплик+) |
+|---------|:-------------------:|:------------------------:|
+| ⚡ Experiment API (p99) | **~43ms** напрямую / **~80ms** через gateway | **< 10ms** |
+| ⚡ Experiment API (RPS) | **~500** | **~2 500+** |
+| 🚀 Tracker API (p99) | **~21ms** напрямую / **~80ms** через gateway | **< 10ms** |
+| 🚀 Tracker API (RPS) | **~800** | **~4 000+** |
+| 📦 Worker batch size | **5 000 событий** | 5 000+ (настраивается) |
+| ⏱ Worker flush interval | **5 секунд** | 5 сек (настраивается) |
+| 🔄 Гарантия доставки | **At-least-once** | At-least-once |
 
 </div>
+
+<details>
+<summary>🧪 Как запустить нагрузочный тест самому</summary>
+
+```bash
+pip install locust
+
+# Experiment API (напрямую)
+locust -f tests/load/locustfile.py \
+  --host=http://localhost:18000 \
+  --headless -u 50 -r 10 --run-time 20s
+
+# Через gateway (как реальные пользователи)
+locust -f tests/load/locustfile.py \
+  --host=http://localhost:8080 \
+  --headless -u 50 -r 10 --run-time 20s
+
+# С веб-интерфейсом
+locust -f tests/load/locustfile.py --host=http://localhost:8080
+# Открыть http://localhost:8089
+```
+
+</details>
 
 ---
 
