@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin — A/B Experiments</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, system-ui, sans-serif; background: #f0f2f5; padding: 40px; }
+        .container { max-width: 860px; margin: 0 auto; }
+        h1 { margin-bottom: 24px; color: #1a1a2e; }
+        .card { background: #fff; border-radius: 10px; padding: 24px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+        .key-form { display: flex; gap: 12px; margin-bottom: 24px; }
+        .key-form input { flex: 1; padding: 8px 12px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 14px; }
+        .key-form button { padding: 8px 20px; background: #4a6cf7; color: #fff; border: none; border-radius: 6px; cursor: pointer; }
+        .exp-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #eee; }
+        .exp-row:last-child { border-bottom: none; }
+        .exp-name { font-weight: 600; color: #1a1a2e; }
+        .exp-meta { font-size: 13px; color: #666; }
+        .delete-btn { background: none; border: 1px solid #d93025; color: #d93025; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+        .stats-btn { background: none; border: 1px solid #4a6cf7; color: #4a6cf7; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+        .stats-btn:hover { background: #e8f0fe; }
+        .stats-panel { background: #f8f9fa; border-radius: 8px; padding: 16px; margin: 8px 0; font-size: 13px; }
+        .stats-panel table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+        .stats-panel th, .stats-panel td { padding: 6px 10px; text-align: left; border-bottom: 1px solid #e0e0e0; }
+        .stats-panel th { font-size: 11px; color: #666; text-transform: uppercase; }
+        .error { color: #d93025; font-size: 13px; margin-top: 8px; }
+        .hidden { display: none; }
+        #keySection { margin-bottom: 24px; }
+        .form-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+        .form-row label { font-size: 13px; color: #555; min-width: 60px; }
+        .form-row input { padding: 6px 10px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 13px; }
+        .variant-card { background: #f8f9fa; border-radius: 8px; padding: 16px; margin-bottom: 12px; border: 1px solid #e8e8e8; }
+        .variant-card .form-row input[type="text"] { width: 120px; }
+        .variant-card .form-row input[type="number"] { width: 70px; }
+        .variant-card .form-row input[type="color"] { width: 40px; height: 32px; padding: 2px; cursor: pointer; }
+        .variant-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .variant-header strong { font-size: 14px; color: #333; }
+        .add-btn { padding: 8px 16px; background: #e8f0fe; color: #1a73e8; border: 1px dashed #1a73e8; border-radius: 6px; cursor: pointer; font-size: 13px; }
+        .add-btn:hover { background: #d2e3fc; }
+        .remove-btn { background: none; border: none; color: #d93025; cursor: pointer; font-size: 18px; line-height: 1; padding: 0 4px; }
+        .submit-row { margin-top: 16px; display: flex; gap: 12px; align-items: center; }
+        .submit-row button { padding: 10px 28px; background: #0f9d58; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 15px; }
+        .submit-row button:hover { background: #0b8043; }
+        .expanded-meta { font-size: 12px; color: #888; margin-top: 4px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Управление экспериментами</h1>
+
+    <div id="keySection" class="card">
+        <div class="key-form">
+            <input type="password" id="apiKeyInput" placeholder="API ключ (X-Admin-Key)">
+            <button onclick="setKey()">Войти</button>
+        </div>
+        <div style="font-size:13px;color:#999;">Ключ из .env: <code>ADMIN_API_KEY</code></div>
+    </div>
+
+    <div id="mainSection" class="hidden">
+        <div class="card">
+            <h3 style="margin-bottom:16px;">Новый эксперимент</h3>
+
+            <div class="form-row">
+                <label>Название</label>
+                <input type="text" id="newName" placeholder="Например: landing_cta_style" style="width:260px;">
+                <label style="margin-left:16px;">URL</label>
+                <input type="text" id="newUrl" placeholder="/path (опц.)" style="width:140px;">
+            </div>
+
+            <div style="margin-top:16px;margin-bottom:8px;">
+                <strong style="font-size:14px;">Варианты</strong>
+            </div>
+            <div id="variantList"></div>
+            <button class="add-btn" onclick="addVariant()">+ Добавить вариант</button>
+
+            <div class="submit-row">
+                <button onclick="createExperiment()">Создать эксперимент</button>
+                <div id="createError" class="error" style="margin:0;"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 style="margin-bottom:12px;">Эксперименты</h3>
+            <div id="experimentList">Загрузка...</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let variantIdCounter = 0;
+    let apiKey = localStorage.getItem('admin_key') || '';
+
+    function setKey() {
+        apiKey = document.getElementById('apiKeyInput').value;
+        localStorage.setItem('admin_key', apiKey);
+        document.getElementById('keySection').classList.add('hidden');
+        document.getElementById('mainSection').classList.remove('hidden');
+        loadExperiments();
+    }
+
+    if (apiKey) {
+        document.getElementById('keySection').classList.add('hidden');
+        document.getElementById('mainSection').classList.remove('hidden');
+        loadExperiments();
+    }
+
+    function addVariant(data) {
+        const id = ++variantIdCounter;
+        const name = data ? data.name : '';
+        const weight = data ? data.weight : '';
+        const title = data ? (data.title || '') : '';
+        const text = data ? (data.text || '') : '';
+        const ctaText = data ? (data.cta_text || '') : '';
+        const ctaColor = data ? (data.cta_color || '#1a73e8') : '#1a73e8';
+        const ctaTextColor = data ? (data.cta_text_color || '#ffffff') : '#ffffff';
+
+        const div = document.createElement('div');
+        div.className = 'variant-card';
+        div.id = 'variant-' + id;
+        div.innerHTML = `
+            <div class="variant-header">
+                <strong>Вариант</strong>
+                <button class="remove-btn" onclick="removeVariant(${id})" title="Удалить вариант">×</button>
+            </div>
+            <div class="form-row">
+                <label>Имя</label>
+                <input type="text" id="vname-${id}" value="${name}" placeholder="A, B, blue...">
+                <label style="margin-left:12px;">Вес</label>
+                <input type="number" id="vweight-${id}" value="${weight}" min="1" placeholder="50">
+            </div>
+            <div class="form-row">
+                <label>Заголовок</label>
+                <input type="text" id="vtitle-${id}" value="${title}" placeholder="Классический стиль" style="width:220px;">
+                <label style="margin-left:12px;">Текст</label>
+                <input type="text" id="vtext-${id}" value="${text}" placeholder="Описание продукта" style="width:260px;">
+            </div>
+            <div class="form-row">
+                <label>CTA текст</label>
+                <input type="text" id="vcta-${id}" value="${ctaText}" placeholder="Купить сейчас">
+                <label style="margin-left:12px;">CTA цвет</label>
+                <input type="color" id="vcolor-${id}" value="${ctaColor}">
+                <label style="margin-left:12px;">Текст цвет</label>
+                <input type="color" id="vtcolor-${id}" value="${ctaTextColor}">
+            </div>
+        `;
+        document.getElementById('variantList').appendChild(div);
+    }
+
+    function removeVariant(id) {
+        const el = document.getElementById('variant-' + id);
+        if (el) el.remove();
+    }
+
+    function getVariantsData() {
+        const cards = document.querySelectorAll('.variant-card');
+        const variants = {};
+        const config = {};
+        for (const card of cards) {
+            const id = card.id.replace('variant-', '');
+            const name = document.getElementById('vname-' + id).value.trim();
+            const weight = parseInt(document.getElementById('vweight-' + id).value);
+            const title = document.getElementById('vtitle-' + id).value.trim();
+            const text = document.getElementById('vtext-' + id).value.trim();
+            const ctaText = document.getElementById('vcta-' + id).value.trim();
+            const ctaColor = document.getElementById('vcolor-' + id).value;
+            const ctaTextColor = document.getElementById('vtcolor-' + id).value;
+            if (!name || !weight) continue;
+            variants[name] = weight;
+            if (title || text || ctaText) {
+                config[name] = {};
+                if (title) config[name].title = title;
+                if (text) config[name].text = text;
+                if (ctaText) config[name].cta_text = ctaText;
+                config[name].cta_color = ctaColor;
+                config[name].cta_text_color = ctaTextColor;
+            }
+        }
+        return { variants, config: Object.keys(config).length > 0 ? config : null };
+    }
+
+    async function apiFetch(path, opts = {}) {
+        const res = await fetch(path, {
+            ...opts,
+            headers: { ...opts.headers, 'X-Admin-Key': apiKey, 'Content-Type': 'application/json' },
+        });
+        if (res.status === 403) {
+            alert('Неверный ключ!');
+            localStorage.removeItem('admin_key');
+            location.reload();
+        }
+        return res;
+    }
+
+    async function loadExperiments() {
+        const list = document.getElementById('experimentList');
+        list.innerHTML = 'Загрузка...';
+        try {
+            const res = await apiFetch('/api/v1/experiments/');
+            const data = await res.json();
+            if (!Array.isArray(data)) { list.innerHTML = 'Ошибка загрузки'; return; }
+            if (data.length === 0) { list.innerHTML = '<div style="color:#999;">Нет экспериментов</div>'; return; }
+            list.innerHTML = data.map(e => `
+                <div class="exp-row" style="flex-wrap:wrap;">
+                    <div style="flex:1;">
+                        <div class="exp-name">${e.name}</div>
+                        <div class="exp-meta">Варианты: ${Object.entries(e.variants).map(([k,v]) => `${k}:${v}`).join(', ')} · Всего: ${e.total_weight} · ${e.is_active ? 'Активен' : 'Неактивен'}</div>
+                        <div class="expanded-meta">${e.url ? 'URL: ' + e.url : ''}${e.config ? (e.url ? ' · ' : '') + 'Есть конфиг (' + Object.keys(e.config).length + ' вариантов)' : ''}</div>
+                    </div>
+                    <div style="display:flex;gap:6px;">
+                        <button class="stats-btn" onclick="showStats('${e.name}')">📊 Статистика</button>
+                        <button class="delete-btn" onclick="deleteExp('${e.name}')">Удалить</button>
+                    </div>
+                </div>
+                <div id="stats-${e.name.replace(/[^a-zA-Z0-9]/g,'_')}" class="stats-panel hidden"></div>
+            `).join('');
+        } catch(e) {
+            list.innerHTML = 'Ошибка: ' + e;
+        }
+    }
+
+    async function createExperiment() {
+        const name = document.getElementById('newName').value.trim();
+        const url = document.getElementById('newUrl').value.trim() || null;
+        const { variants, config } = getVariantsData();
+        document.getElementById('createError').textContent = '';
+
+        if (!name) { document.getElementById('createError').textContent = 'Укажите название эксперимента'; return; }
+        if (Object.keys(variants).length < 2) { document.getElementById('createError').textContent = 'Добавьте хотя бы 2 варианта'; return; }
+
+        const body = { name, variants };
+        if (url) body.url = url;
+        if (config) body.config = config;
+
+        const res = await apiFetch('/api/v1/experiments/', {
+            method: 'POST',
+            body: JSON.stringify(body),
+        });
+        if (!res.ok) {
+            const err = await res.json();
+            document.getElementById('createError').textContent = err.detail || 'Ошибка при создании';
+            return;
+        }
+        // Сброс формы
+        document.getElementById('newName').value = '';
+        document.getElementById('newUrl').value = '';
+        document.getElementById('variantList').innerHTML = '';
+        variantIdCounter = 0;
+        addVariant({ name: 'A', weight: 50, title: '', text: '', cta_text: '', cta_color: '#1a73e8' });
+        addVariant({ name: 'B', weight: 50, title: '', text: '', cta_text: '', cta_color: '#0f9d58' });
+        loadExperiments();
+    }
+
+    async function deleteExp(name) {
+        if (!confirm(`Удалить эксперимент "${name}"?`)) return;
+        await apiFetch(`/api/v1/experiments/${encodeURIComponent(name)}`, { method: 'DELETE' });
+        loadExperiments();
+    }
+
+    async function showStats(name) {
+        const safeName = name.replace(/[^a-zA-Z0-9]/g, '_');
+        const panel = document.getElementById('stats-' + safeName);
+        if (!panel) return;
+        if (!panel.classList.contains('hidden')) {
+            panel.classList.add('hidden');
+            return;
+        }
+        panel.classList.remove('hidden');
+        panel.innerHTML = 'Загрузка...';
+        try {
+            const res = await apiFetch(`/api/v1/stats/${encodeURIComponent(name)}`);
+            if (!res.ok) { panel.innerHTML = 'Ошибка загрузки'; return; }
+            const d = await res.json();
+            let html = '';
+
+            // Сводка
+            html += '<h4 style="margin-bottom:8px;">Сводка</h4>';
+            html += '<table><tr><th>Вариант</th><th>Событий</th><th>Пользователей</th><th>Первый</th><th>Последний</th></tr>';
+            for (const s of d.summary) {
+                html += `<tr><td><strong>${s.variant}</strong></td><td>${s.total_events}</td><td>${s.unique_users}</td><td>${s.first_event}</td><td>${s.last_event}</td></tr>`;
+            }
+            html += '</table>';
+
+            // Конверсия
+            if (d.funnel && d.funnel.length > 0) {
+                html += '<h4 style="margin:16px 0 8px;">Конверсия (page_view → cta_click)</h4>';
+                html += '<table><tr><th>Вариант</th><th>Просмотры</th><th>Клики</th><th>Конверсия</th></tr>';
+                for (const f of d.funnel) {
+                    html += `<tr><td><strong>${f.variant}</strong></td><td>${f.views}</td><td>${f.clicks}</td><td><strong>${f.conversion_pct}%</strong></td></tr>`;
+                }
+                html += '</table>';
+            }
+
+            // События по типам
+            if (d.by_event && d.by_event.length > 0) {
+                html += '<h4 style="margin:16px 0 8px;">События по типам</h4>';
+                html += '<table><tr><th>Вариант</th><th>Событие</th><th>Количество</th><th>Пользователей</th></tr>';
+                for (const e of d.by_event) {
+                    html += `<tr><td>${e.variant}</td><td>${e.event_name}</td><td>${e.cnt}</td><td>${e.users}</td></tr>`;
+                }
+                html += '</table>';
+            }
+
+            // Последние события
+            if (d.recent && d.recent.length > 0) {
+                html += '<h4 style="margin:16px 0 8px;">Последние события</h4>';
+                html += '<div style="max-height:150px;overflow-y:auto;font-size:12px;">';
+                for (const r of d.recent) {
+                    html += `<div style="padding:3px 0;border-bottom:1px solid #eee;"><span style="color:#999;">${r.timestamp.slice(11,19)}</span> <strong>${r.user_id}</strong> → ${r.event_name} <span style="color:#4a6cf7;">${r.variant}</span></div>`;
+                }
+                html += '</div>';
+            }
+
+            panel.innerHTML = html;
+        } catch(e) {
+            panel.innerHTML = 'Ошибка: ' + e;
+        }
+    }
+
+    // Начальное состояние: 2 варианта для примера
+    addVariant({ name: 'A', weight: 50, title: '', text: '', cta_text: '', cta_color: '#1a73e8' });
+    addVariant({ name: 'B', weight: 50, title: '', text: '', cta_text: '', cta_color: '#0f9d58' });
+</script>
+</body>
+</html>

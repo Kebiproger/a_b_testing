@@ -1,0 +1,5 @@
+fastapi[standard]
+redis
+sqlalchemy[asyncio]
+pydantic-settings
+asyncpg

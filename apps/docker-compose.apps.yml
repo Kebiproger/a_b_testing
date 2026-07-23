@@ -1,0 +1,28 @@
+services:
+  experiment_api:
+    container_name: experiment_api
+    build: experiment_api
+    env_file: ../.env
+    expose:
+      - "8000"
+    networks:
+      - ab_testing_net
+    volumes:
+      - ./experiment_api:/app
+    command: "uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload"
+
+  track_api:
+    container_name: track_api
+    build: track_api
+    env_file: ../.env
+    expose:
+      - "8000"
+    networks:
+      - ab_testing_net
+    volumes:
+      - ./track_api:/app
+    command: "uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload"
+
+networks:
+  ab_testing_net:
+    external: true

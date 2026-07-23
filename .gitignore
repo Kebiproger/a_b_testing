@@ -1,0 +1,4 @@
+.agents/
+venv/
+test_code.py
+.env

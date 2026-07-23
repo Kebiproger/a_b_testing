@@ -1,0 +1,82 @@
+services:
+  redis:
+    container_name: redis
+    image: redis:7.2-alpine
+    volumes:
+      - redis_data:/data
+    networks:
+      - ab_testing_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  rabbitmq:
+    container_name: rabbitmq
+    image: rabbitmq:3.13-management
+    ports:
+      - "${RABBITMQ_MGMT_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - ab_testing_net
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  postgres:
+    container_name: postgres
+    image: postgres:16-alpine
+    env_file: ../.env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d
+    networks:
+      - ab_testing_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  clickhouse:
+    container_name: clickhouse
+    image: clickhouse/clickhouse-server:24.8
+    env_file: ../.env
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - ./clickhouse/init:/docker-entrypoint-initdb.d
+    networks:
+      - ab_testing_net
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8123/ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  worker_collector:
+    build:
+      context: ./worker_collector
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    networks:
+      - ab_testing_net
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+
+volumes:
+  redis_data:
+  rabbitmq_data:
+  clickhouse_data:
+  postgres_data:
+
+networks:
+  ab_testing_net:
+    name: ab_testing_net
