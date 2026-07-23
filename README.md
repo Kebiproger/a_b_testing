@@ -450,4 +450,8 @@ ab_testing/
     🧪 <b>A/B Testing Engine</b> — проверяйте гипотезы, не замедляя приложение<br>
     <sub>Сделано с ❤️ и ☕ для продуктовых команд</sub>
   </p>
+  <p style="margin-top: 12px;">
+    <a href="https://github.com/Kebiproger/a_b_testing_demo">🏢 Демо-приложение (Company App)</a> —
+    лендинг с реальными A/B тестами
+  </p>
 </div>
