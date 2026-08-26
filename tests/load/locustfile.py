@@ -115,32 +115,27 @@ class TrackerApiUser(HttpUser):
 # ─────────── Setup: создать эксперимент перед тестом ───────────
 def setup_experiment(environment: Environment, **kwargs):
     """Создаёт тестовый эксперимент один раз перед запуском нагрузки."""
-    import urllib.request
-    import json as j
+    import httpx
 
     host = environment.host or "http://localhost:8080"
     url = f"{host}/api/v1/experiments/"
-    payload = j.dumps({
+    payload = {
         "name": EXPERIMENT_NAME,
         "variants": VARIANTS,
         "is_active": True,
-    }).encode()
+    }
     headers = {
         "X-Admin-Key": ADMIN_KEY,
         "Content-Type": "application/json",
     }
     try:
-        req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
-        resp = urllib.request.urlopen(req, timeout=5)
-        if resp.status == 201:
+        resp = httpx.post(url, json=payload, headers=headers, timeout=5)
+        if resp.status_code == 201:
             print(f"[SETUP] Experiment '{EXPERIMENT_NAME}' created")
-        elif resp.status == 400:
-            print(f"[SETUP] Experiment already exists, continuing")
-    except urllib.error.HTTPError as e:
-        if e.code == 400:
+        elif resp.status_code == 400:
             print(f"[SETUP] Experiment already exists, continuing")
         else:
-            print(f"[SETUP] WARNING: Unexpected response {e.code}: {e.read().decode()}")
+            print(f"[SETUP] WARNING: Unexpected response {resp.status_code}: {resp.text}")
     except Exception as e:
         print(f"[SETUP] ERROR: Could not create experiment: {e}")
         print("[SETUP] Load tests may fail if experiment is missing")

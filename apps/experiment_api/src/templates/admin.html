@@ -6,7 +6,7 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, system-ui, sans-serif; background: #f0f2f5; padding: 40px; }
-        .container { max-width: 860px; margin: 0 auto; }
+        .container { max-width: 900px; margin: 0 auto; }
         h1 { margin-bottom: 24px; color: #1a1a2e; }
         .card { background: #fff; border-radius: 10px; padding: 24px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
         .key-form { display: flex; gap: 12px; margin-bottom: 24px; }
@@ -17,12 +17,17 @@
         .exp-name { font-weight: 600; color: #1a1a2e; }
         .exp-meta { font-size: 13px; color: #666; }
         .delete-btn { background: none; border: 1px solid #d93025; color: #d93025; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; }
-        .stats-btn { background: none; border: 1px solid #4a6cf7; color: #4a6cf7; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+        .stats-btn { background: none; border: 1px solid #4a6cf7; color: #4a6cf7; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-right: 6px; }
         .stats-btn:hover { background: #e8f0fe; }
-        .stats-panel { background: #f8f9fa; border-radius: 8px; padding: 16px; margin: 8px 0; font-size: 13px; }
+        .stats-panel { background: #fff; border-radius: 8px; padding: 16px; margin: 8px 0; border: 1px solid #e8e8e8; }
+        .stats-panel h4 { margin: 12px 0 8px; color: #1a1a2e; font-size: 15px; border-bottom: 2px solid #4a6cf7; padding-bottom: 4px; }
+        .stats-panel h5 { margin: 10px 0 6px; color: #333; font-size: 13px; }
         .stats-panel table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-        .stats-panel th, .stats-panel td { padding: 6px 10px; text-align: left; border-bottom: 1px solid #e0e0e0; }
+        .stats-panel th, .stats-panel td { padding: 6px 10px; text-align: left; border-bottom: 1px solid #e0e0e0; font-size: 13px; }
         .stats-panel th { font-size: 11px; color: #666; text-transform: uppercase; }
+        .stats-panel .highlight { color: #0f9d58; font-weight: 600; }
+        .stats-panel .warning { color: #f4b400; font-weight: 600; }
+        .stats-panel .danger { color: #d93025; font-weight: 600; }
         .error { color: #d93025; font-size: 13px; margin-top: 8px; }
         .hidden { display: none; }
         #keySection { margin-bottom: 24px; }
@@ -42,6 +47,37 @@
         .submit-row button { padding: 10px 28px; background: #0f9d58; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 15px; }
         .submit-row button:hover { background: #0b8043; }
         .expanded-meta { font-size: 12px; color: #888; margin-top: 4px; }
+        
+        /* Новые стили для умного анализа */
+        .recommendation-box { background: #f0f7ff; border-left: 4px solid #4a6cf7; padding: 12px; margin: 10px 0; border-radius: 4px; }
+        .recommendation-box strong { color: #1a1a2e; }
+        .recommendation-box .action { font-weight: 600; color: #0f9d58; margin-top: 4px; }
+        .recommendation-box .confidence { font-size: 12px; color: #666; margin-top: 2px; }
+        .recommendation-box .risk { font-size: 12px; color: #f4b400; margin-top: 2px; }
+        
+        .toggle-section { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+        .toggle-section input { width: 16px; height: 16px; }
+        .toggle-section label { font-size: 13px; color: #555; cursor: pointer; }
+        
+        .segment-item { background: #f8f9fa; padding: 8px; margin: 4px 0; border-radius: 4px; font-size: 13px; }
+        .segment-item .strong { font-weight: 600; }
+        .segment-item .good { color: #0f9d58; }
+        .segment-item .bad { color: #d93025; }
+        
+        .funnel-step { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #eee; font-size: 13px; }
+        .funnel-step:last-child { border-bottom: none; }
+        .funnel-step .step-name { font-weight: 600; }
+        .funnel-step .step-rate { color: #666; }
+        
+        .outlier-item { background: #fff3cd; padding: 8px; margin: 4px 0; border-radius: 4px; font-size: 12px; color: #856404; }
+        
+        .guardrail-item { padding: 6px 0; font-size: 13px; }
+        .guardrail-item.healthy { color: #0f9d58; }
+        .guardrail-item.warning { color: #f4b400; }
+        .guardrail-item.critical { color: #d93025; font-weight: 600; }
+        
+        .chart-toggle { display: flex; gap: 16px; margin: 12px 0; flex-wrap: wrap; }
+        .chart-toggle label { display: flex; align-items: center; gap: 4px; font-size: 12px; color: #666; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -199,6 +235,7 @@
             const data = await res.json();
             if (!Array.isArray(data)) { list.innerHTML = 'Ошибка загрузки'; return; }
             if (data.length === 0) { list.innerHTML = '<div style="color:#999;">Нет экспериментов</div>'; return; }
+
             list.innerHTML = data.map(e => `
                 <div class="exp-row" style="flex-wrap:wrap;">
                     <div style="flex:1;">
@@ -207,11 +244,13 @@
                         <div class="expanded-meta">${e.url ? 'URL: ' + e.url : ''}${e.config ? (e.url ? ' · ' : '') + 'Есть конфиг (' + Object.keys(e.config).length + ' вариантов)' : ''}</div>
                     </div>
                     <div style="display:flex;gap:6px;">
-                        <button class="stats-btn" onclick="showStats('${e.name}')">📊 Статистика</button>
+                        <button class="stats-btn" onclick="showSmartStats('${e.name}')">🧠 Умный анализ</button>
+                        <button class="stats-btn" onclick="showBasicStats('${e.name}')">📊 Базовая статистика</button>
                         <button class="delete-btn" onclick="deleteExp('${e.name}')">Удалить</button>
                     </div>
                 </div>
-                <div id="stats-${e.name.replace(/[^a-zA-Z0-9]/g,'_')}" class="stats-panel hidden"></div>
+                <div id="smart-stats-${e.name.replace(/[^a-zA-Z0-9]/g,'_')}" class="stats-panel hidden"></div>
+                <div id="basic-stats-${e.name.replace(/[^a-zA-Z0-9]/g,'_')}" class="stats-panel hidden"></div>
             `).join('');
         } catch(e) {
             list.innerHTML = 'Ошибка: ' + e;
@@ -240,7 +279,6 @@
             document.getElementById('createError').textContent = err.detail || 'Ошибка при создании';
             return;
         }
-        // Сброс формы
         document.getElementById('newName').value = '';
         document.getElementById('newUrl').value = '';
         document.getElementById('variantList').innerHTML = '';
@@ -256,30 +294,214 @@
         loadExperiments();
     }
 
-    async function showStats(name) {
+    async function showSmartStats(name) {
         const safeName = name.replace(/[^a-zA-Z0-9]/g, '_');
-        const panel = document.getElementById('stats-' + safeName);
+        const panel = document.getElementById('smart-stats-' + safeName);
         if (!panel) return;
+        
+        // Скрыть все другие панели
+        document.querySelectorAll('.stats-panel').forEach(p => p.classList.add('hidden'));
+        
         if (!panel.classList.contains('hidden')) {
             panel.classList.add('hidden');
             return;
         }
+        
         panel.classList.remove('hidden');
         panel.innerHTML = 'Загрузка...';
+        
         try {
+            // Запрашиваем умный анализ
+            const res = await apiFetch(`/api/v1/stats/${encodeURIComponent(name)}?method=both&segments=platform,user_tenure,traffic_source`);
+            if (!res.ok) { panel.innerHTML = 'Ошибка загрузки'; return; }
+            const d = await res.json();
+            
+            let html = '';
+            
+            // Рекомендации
+            if (d.recommendations && d.recommendations.length > 0) {
+                html += '<h4>🎯 Рекомендации</h4>';
+                for (const rec of d.recommendations) {
+                    html += `<div class="recommendation-box">`;
+                    html += `<strong>${rec.summary}</strong>`;
+                    if (rec.action) html += `<div class="action">Действие: ${rec.action}</div>`;
+                    if (rec.confidence) html += `<div class="confidence">Уверенность: ${rec.confidence}</div>`;
+                    if (rec.risk_note) html += `<div class="risk">⚠️ ${rec.risk_note}</div>`;
+                    if (rec.additional_insights && rec.additional_insights.length > 0) {
+                        html += '<div style="margin-top:6px;font-size:12px;">';
+                        for (const insight of rec.additional_insights) {
+                            html += `<div>• ${insight}</div>`;
+                        }
+                        html += '</div>';
+                    }
+                    html += `</div>`;
+                }
+            }
+            
+            // Статистика
+            if (d.statistical && !d.statistical.error) {
+                html += '<h4>📈 Статистика</h4>';
+                html += '<table>';
+                html += '<tr><th>Показатель</th><th>Значение</th></tr>';
+                if (d.statistical.sample_rates) {
+                    const variantRate = d.statistical.sample_rates.rate_variant || 0;
+                    const controlRate = d.statistical.sample_rates.rate_control || 0;
+                    const variantRateStr = variantRate.toFixed(4);
+                    const controlRateStr = controlRate.toFixed(4);
+                    const variantPct = (variantRate * 100).toFixed(2);
+                    const controlPct = (controlRate * 100).toFixed(2);
+                    const variantLabel = d.statistical.method === 'bayesian' ? 'B' : variantName(d);
+                    const controlLabel = d.statistical.method === 'bayesian' ? 'A' : controlName(d);
+                    html += `<tr><td>Конверсия ${variantLabel}</td><td>${variantRateStr} (${variantPct}%)</td></tr>`;
+                    html += `<tr><td>Конверсия ${controlLabel}</td><td>${controlRateStr} (${controlPct}%)</td></tr>`;
+                    const relLift = d.statistical.sample_rates.relative_lift_pct || 0;
+                    const relLiftClass = Math.sign(relLift) > 0 ? 'highlight' : 'danger';
+                    html += `<tr><td>Относительный uplift</td><td class="${relLiftClass}">${relLift.toFixed(2)}%</td></tr>`;
+                }
+                if (d.statistical.frequentist) {
+                    html += `<tr><td>p-value</td><td class="${(d.statistical.frequentist.p_value || 1) < 0.05 ? 'highlight' : 'warning'}">${(d.statistical.frequentist.p_value || 1).toFixed(6)}</td></tr>`;
+                    html += `<tr><td>Статистическая значимость</td><td>${d.statistical.frequentist.is_significant ? '✅ Да' : '❌ Нет'}</td></tr>`;
+                    const ciDiff = d.statistical.frequentist.ci_absolute_difference;
+                    const ciLower = ciDiff ? ciDiff[0].toFixed(4) : 'N/A';
+                    const ciUpper = ciDiff ? ciDiff[1].toFixed(4) : 'N/A';
+                    html += `<tr><td>Доверительный интервал (абс.)</td><td>[${ciLower}, ${ciUpper}]</td></tr>`;
+                }
+                if (d.statistical.bayesian) {
+                    const probBBetter = d.statistical.bayesian.probability_b_better || 0.5;
+                    const probClass = probBBetter > 0.95 ? 'highlight' : (probBBetter > 0.8 ? 'warning' : 'danger');
+                    const probPct = (probBBetter * 100).toFixed(1);
+                    html += `<tr><td>Вероятность, что B лучше A</td><td class="${probClass}">${probPct}%</td></tr>`;
+                    html += `<tr><td>Ожидаемые потери (выбор B)</td><td>${(d.statistical.bayesian.expected_loss_choose_b || 0).toFixed(6)}</td></tr>`;
+                }
+                html += '</table>';
+            }
+            
+            // Бизнес-метрики
+            if (d.business && d.business.revenue) {
+                html += '<h4>💰 Бизнес-метрики</h4>';
+                html += '<table>';
+                html += '<tr><th>Метрика</th><th>Вариант A</th><th>Вариант B</th><th>Uplift</th></tr>';
+                if (d.business.revenue.arpu) {
+                    html += `<tr><td>ARPU</td><td>${(d.business.revenue.arpu.control || 0).toFixed(4)}</td><td>${(d.business.revenue.arpu.variant || 0).toFixed(4)}</td><td class="${Math.sign(d.business.revenue.arpu.uplift_relative_pct || 0) > 0 ? 'highlight' : 'danger'}">${(d.business.revenue.arpu.uplift_relative_pct || 0).toFixed(2)}%</td></tr>`;
+                }
+                if (d.business.revenue.expected_impact && d.business.revenue.expected_impact.monthly) {
+                    html += `<tr><td>Ожидаемый месячный эффект</td><td colspan="3" class="highlight">${(d.business.revenue.expected_impact.monthly || 0).toFixed(2)} у.е.</td></tr>`;
+                }
+                html += '</table>';
+                
+                // Guardrails
+                if (d.business.guardrails && d.business.guardrails.length > 0) {
+                    html += '<h5>🛡️ Метрики здоровья</h5>';
+                    for (const g of d.business.guardrails) {
+                        const statusClass = g.includes('✅') ? 'healthy' : (g.includes('⚠️') ? 'warning' : 'critical');
+                        html += `<div class="guardrail-item ${statusClass}">${g}</div>`;
+                    }
+                }
+            }
+            
+            // Сегментация
+            if (d.segmentation && Object.keys(d.segmentation).length > 0) {
+                html += '<h4>📊 Сегментация</h4>';
+                for (const [segName, segData] of Object.entries(d.segmentation)) {
+                    html += `<h5>${segName}</h5>`;
+                    if (segData.comparisons) {
+                        for (const comp of segData.comparisons) {
+                            const liftClass = Math.sign(comp.relative_lift_pct) > 0 ? 'good' : 'bad';
+                            html += `<div class="segment-item">`;
+                            html += `<span class="strong">${comp.segment_value}</span>: `;
+                            html += `${(comp.rate_variant || 0).toFixed(4)} vs ${(comp.rate_control || 0).toFixed(4)} `;
+                            html += `<span class="${liftClass}">${(comp.relative_lift_pct || 0).toFixed(1)}%</span>`;
+                            if (comp.significance && comp.significance.is_significant) {
+                                html += ` <span style="color:#0f9d58;">✅</span>`;
+                            }
+                            html += `</div>`;
+                        }
+                    }
+                }
+            }
+            
+            // Воронка
+            if (d.funnel) {
+                html += '<h4>🚰 Воронка конверсии</h4>';
+                if (d.funnel.funnel_steps) {
+                    for (const step of d.funnel.funnel_steps) {
+                        html += `<div class="funnel-step">`;
+                        html += `<span class="step-name">${step.step_name}</span>`;
+                        html += `<span class="step-rate">A: ${((step.control_step_rate || 0)*100).toFixed(1)}% | B: ${((step.variant_step_rate || 0)*100).toFixed(1)}%</span>`;
+                        html += `</div>`;
+                    }
+                }
+                if (d.funnel.overall_conversion) {
+                    html += `<div style="margin-top:8px;font-size:12px;color:#666;">`;
+                    html += `Общая конверсия: A ${((d.funnel.overall_conversion.control || 0)*100).toFixed(1)}% | B ${((d.funnel.overall_conversion.variant || 0)*100).toFixed(1)}%`;
+                    html += `</div>`;
+                }
+            }
+            
+            // Выбросы
+            if (d.outliers && d.outliers.outliers && d.outliers.outliers.length > 0) {
+                html += '<h4>⚠️ Выбросы</h4>';
+                for (const o of d.outliers.outliers) {
+                    html += `<div class="outlier-item">`;
+                    html += `<strong>${o.user_id}</strong>: ${o.reason}`;
+                    html += `</div>`;
+                }
+            }
+            
+            // Daily trend
+            if (d.daily_trend && d.daily_trend.length > 0) {
+                html += '<h4>📅 Динамика по дням</h4>';
+                html += '<table>';
+                html += '<tr><th>Дата</th><th>Вариант</th><th>Пользователей</th><th>Конверсия</th></tr>';
+                for (const day of d.daily_trend.slice(0, 10)) {
+                    html += `<tr>`;
+                    html += `<td>${day.day || 'N/A'}</td>`;
+                    html += `<td>${day.variant || 'N/A'}</td>`;
+                    html += `<td>${day.daily_users || 0}</td>`;
+                    html += `<td>${(day.daily_conversion_rate_pct || 0).toFixed(2)}%</td>`;
+                    html += `</tr>`;
+                }
+                html += '</table>';
+            }
+            
+            panel.innerHTML = html;
+        } catch(e) {
+            panel.innerHTML = 'Ошибка: ' + e;
+        }
+    }
+    
+    async function showBasicStats(name) {
+        const safeName = name.replace(/[^a-zA-Z0-9]/g, '_');
+        const panel = document.getElementById('basic-stats-' + safeName);
+        if (!panel) return;
+        
+        // Скрыть все другие панели
+        document.querySelectorAll('.stats-panel').forEach(p => p.classList.add('hidden'));
+        
+        if (!panel.classList.contains('hidden')) {
+            panel.classList.add('hidden');
+            return;
+        }
+        
+        panel.classList.remove('hidden');
+        panel.innerHTML = 'Загрузка...';
+        
+        try {
+            // Используем старый endpoint для базовой статистики
             const res = await apiFetch(`/api/v1/stats/${encodeURIComponent(name)}`);
             if (!res.ok) { panel.innerHTML = 'Ошибка загрузки'; return; }
             const d = await res.json();
+            
             let html = '';
-
+            
             // Сводка
-            html += '<h4 style="margin-bottom:8px;">Сводка</h4>';
+            html += '<h4>Сводка</h4>';
             html += '<table><tr><th>Вариант</th><th>Событий</th><th>Пользователей</th><th>Первый</th><th>Последний</th></tr>';
             for (const s of d.summary) {
                 html += `<tr><td><strong>${s.variant}</strong></td><td>${s.total_events}</td><td>${s.unique_users}</td><td>${s.first_event}</td><td>${s.last_event}</td></tr>`;
             }
             html += '</table>';
-
+            
             // Конверсия
             if (d.funnel && d.funnel.length > 0) {
                 html += '<h4 style="margin:16px 0 8px;">Конверсия (page_view → cta_click)</h4>';
@@ -289,7 +511,7 @@
                 }
                 html += '</table>';
             }
-
+            
             // События по типам
             if (d.by_event && d.by_event.length > 0) {
                 html += '<h4 style="margin:16px 0 8px;">События по типам</h4>';
@@ -299,7 +521,7 @@
                 }
                 html += '</table>';
             }
-
+            
             // Последние события
             if (d.recent && d.recent.length > 0) {
                 html += '<h4 style="margin:16px 0 8px;">Последние события</h4>';
@@ -309,11 +531,30 @@
                 }
                 html += '</div>';
             }
-
+            
             panel.innerHTML = html;
         } catch(e) {
             panel.innerHTML = 'Ошибка: ' + e;
         }
+    }
+    
+    // Вспомогательные функции для определения имен вариантов
+    function variantName(d) {
+        if (d.recommendations && d.recommendations[0] && d.recommendations[0].action) {
+            const action = d.recommendations[0].action;
+            if (action.includes('B')) return 'B';
+            if (action.includes('A')) return 'A';
+        }
+        return 'B';
+    }
+    
+    function controlName(d) {
+        if (d.recommendations && d.recommendations[0] && d.recommendations[0].action) {
+            const action = d.recommendations[0].action;
+            if (action.includes('A')) return 'A';
+            if (action.includes('B')) return 'B';
+        }
+        return 'A';
     }
 
     // Начальное состояние: 2 варианта для примера

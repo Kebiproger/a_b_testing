@@ -1,5 +1,5 @@
 <div align="center">
-  <h1>🧪 A/B Testing Engine</h1>
+  <h1>🧪 SynaqCore</h1>
   <p><b>Микросервисная платформа для серверных A/B/n-экспериментов<br>
   с детерминированным распределением и аналитикой в реальном времени</b></p>
 
@@ -15,7 +15,7 @@
   </p>
 
   <p>
-    <img src="https://img.shields.io/github/license/yourorg/ab_testing?style=flat-square" alt="License">
+    <img src="https://img.shields.io/github/license/yourorg/synaqcore?style=flat-square" alt="License">
     <img src="https://img.shields.io/badge/status-production%20ready-2ea44f?style=flat-square" alt="Status">
   </p>
 </div>
@@ -163,8 +163,8 @@ bucket = (int(hash_hex, 16) % 10000) / 100.0  # → 0.00 .. 99.99
 
 ```bash
 # 1. Клонировать репозиторий
-git clone https://github.com/yourorg/ab_testing.git
-cd ab_testing
+git clone https://github.com/yourorg/synaqcore.git
+cd synaqcore
 
 # 2. Настроить окружение (опционально)
 cp .env.example .env
@@ -410,7 +410,7 @@ cd infra/worker_collector && python src/main.py
 ### Структура проекта
 
 ```
-ab_testing/
+synaqcore/
 ├── apps/                                    # API-микросервисы
 │   ├── experiment_api/                      # Experiment API
 │   │   ├── Dockerfile
@@ -447,7 +447,7 @@ ab_testing/
 <div align="center">
   <hr>
   <p>
-    🧪 <b>A/B Testing Engine</b> — проверяйте гипотезы, не замедляя приложение<br>
+    🧪 <b>SynaqCore</b> — проверяйте гипотезы, не замедляя приложение<br>
     <sub>Сделано с ❤️ и ☕ для продуктовых команд</sub>
   </p>
   <p style="margin-top: 12px;">
